@@ -18,8 +18,9 @@
 
 ```powershell
 pip install yt-dlp
-pip install openai            # 可选：Whisper API 转录
-pip install openai-whisper    # 可选：本地转录（体积较大）
+pip install faster-whisper    # 推荐：本地转录，无需 API key，CPU 可跑
+pip install openai            # 可选：Whisper API 转录（需要密钥）
+pip install openai-whisper    # 可选：本地转录备选（依赖 torch 体积较大）
 ```
 
 还需要 ffmpeg：Windows 可用 `winget install ffmpeg`，macOS 可用 `brew install ffmpeg`，Linux 用系统包管理器安装。
@@ -40,6 +41,8 @@ python install.py
 安装后新开的 Codex 会话即可识别该 Skill。
 
 ### 3. 配置环境变量（可选）
+
+没有 OpenAI 密钥时，本地转录（--local + faster-whisper）即可，完全不需要密钥。
 
 Whisper API 转录需要 `OPENAI_API_KEY` 环境变量。
 
@@ -89,6 +92,8 @@ python scripts/download.py --url 'URL' --output output --cookies-from-browser ed
 
 支持的浏览器：chrome, firefox, edge, safari, brave, opera, vivaldi
 
+注意：浏览器正在运行时，cookie 数据库可能被锁定导致读取失败，请先关闭浏览器重试，或改用方案 2。
+
 - 方案 2：手动导出 cookies.txt，使用 `--cookies` 参数
 
 ## 自定义总结存储位置
@@ -110,8 +115,9 @@ python scripts/download.py --url 'URL' --output output --cookies-from-browser ed
 |------|------|------|
 | yt-dlp | 视频/字幕下载 | 是 |
 | ffmpeg | 音频处理 | 是 |
-| openai | Whisper API | 可选 |
-| openai-whisper | 本地转录 | 可选 |
+| faster-whisper | 本地转录（推荐，无需密钥） | 可选 |
+| openai | Whisper API（需要密钥） | 可选 |
+| openai-whisper | 本地转录（备选） | 可选 |
 
 ## License
 

@@ -38,6 +38,7 @@ python scripts/download.py --url 'URL' --output output --cookies-from-browser ed
 | no video formats found | 更换 IP 或等待一段时间 |
 | 字幕下载失败 | 视频可能没有字幕，改用 Whisper 转录 |
 | 需要登录 | 使用 --cookies-from-browser 参数 |
+| Cookie 数据库被锁定 | 关闭浏览器后重试，或手动导出 cookies.txt |
 | 下载速度慢 | B站限流，建议使用 --limit-rate 参数 |
 
 ---

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-'''语音转文字脚本 - 使用 OpenAI Whisper API 或本地 Whisper'''
+'''语音转文字脚本 - 支持 OpenAI Whisper API、faster-whisper（本地，推荐）和 openai-whisper（本地）'''
 
 import argparse
 import os
@@ -61,7 +61,7 @@ def split_audio(input_path: str, output_dir: str, max_size_mb: int = 24) -> list
 
 
 def transcribe_with_api(audio_path: str, api_key: str, language: str = None) -> str:
-    '''使用 OpenAI Whisper API 转录'''
+    '''使用 OpenAI Whisper API 转录（需要 OPENAI_API_KEY）'''
     try:
         from openai import OpenAI
     except ImportError:
@@ -90,8 +90,37 @@ def format_timestamp(seconds: float) -> str:
     return '%02d:%02d' % (minutes, secs)
 
 
-def transcribe_with_local(audio_path: str, model: str = 'turbo', timestamps: bool = False) -> str:
-    '''使用本地 Whisper 模型转录'''
+def transcribe_faster_whisper(audio_path: str, model: str, timestamps: bool, language: str) -> str:
+    '''使用 faster-whisper 本地转录（无需 API key，CPU 即可，推荐）'''
+    try:
+        from faster_whisper import WhisperModel
+    except ImportError:
+        raise ImportError('请安装 faster-whisper 包: pip install faster-whisper')
+
+    print('加载 faster-whisper 模型: ' + model + ' （首次运行会自动下载）')
+    model_obj = WhisperModel(model, device='cpu', compute_type='int8')
+
+    print('转录音频: ' + audio_path)
+    kwargs = {'vad_filter': True}
+    if language:
+        kwargs['language'] = language
+    segments, info = model_obj.transcribe(audio_path, **kwargs)
+
+    if timestamps:
+        # 输出带时间戳的格式
+        lines = []
+        for seg in segments:
+            ts = format_timestamp(seg.start)
+            text = seg.text.strip()
+            if text:
+                lines.append('[' + ts + '] ' + text)
+        return '\n'.join(lines)
+    else:
+        return ' '.join(seg.text.strip() for seg in segments)
+
+
+def transcribe_openai_whisper(audio_path: str, model: str, timestamps: bool) -> str:
+    '''使用 openai-whisper 本地转录（无需 API key，依赖 torch）'''
     try:
         import whisper
     except ImportError:
@@ -116,9 +145,32 @@ def transcribe_with_local(audio_path: str, model: str = 'turbo', timestamps: boo
         return result['text']
 
 
+def transcribe_with_local(audio_path: str, model: str, timestamps: bool,
+                          language: str = None, engine: str = 'auto') -> str:
+    '''
+    本地转录：auto 模式优先使用 faster-whisper，其次 openai-whisper
+    '''
+    if engine == 'faster-whisper':
+        return transcribe_faster_whisper(audio_path, model, timestamps, language)
+
+    if engine == 'whisper':
+        return transcribe_openai_whisper(audio_path, model, timestamps)
+
+    # auto：优先 faster-whisper（无需 torch，体积小、CPU 快）
+    try:
+        return transcribe_faster_whisper(audio_path, model, timestamps, language)
+    except ImportError:
+        pass
+
+    try:
+        return transcribe_openai_whisper(audio_path, model, timestamps)
+    except ImportError:
+        raise ImportError('未安装本地转录引擎。推荐安装: pip install faster-whisper（无需 OpenAI key）')
+
+
 def transcribe(input_dir: str, output_path: str, api_key: str = None,
-               local: bool = False, model: str = 'turbo', language: str = None,
-               timestamps: bool = False) -> dict:
+               local: bool = False, model: str = 'small', language: str = None,
+               timestamps: bool = False, engine: str = 'auto') -> dict:
     '''
     转录音频文件
 
@@ -130,6 +182,7 @@ def transcribe(input_dir: str, output_path: str, api_key: str = None,
         model: 本地模型名称
         language: 语言代码（可选）
         timestamps: 是否输出时间戳
+        engine: 本地引擎 auto/faster-whisper/whisper
     '''
     audio_files = find_audio_files(input_dir)
 
@@ -147,15 +200,16 @@ def transcribe(input_dir: str, output_path: str, api_key: str = None,
 
     try:
         if local:
-            # 本地模式
-            text = transcribe_with_local(str(audio_path), model, timestamps=timestamps)
+            # 本地模式（无需 OpenAI key）
+            text = transcribe_with_local(str(audio_path), model, timestamps,
+                                         language=language, engine=engine)
             transcripts.append(text)
         else:
             # API 模式
             if not api_key:
                 api_key = os.environ.get('OPENAI_API_KEY')
             if not api_key:
-                return {'success': False, 'error': 'OPENAI_API_KEY 未设置。请设置环境变量或使用 --local 参数'}
+                return {'success': False, 'error': 'OPENAI_API_KEY 未设置。没有密钥时请使用 --local 参数（本地转写，无需密钥）'}
 
             # 检查是否需要分割
             chunks = split_audio(str(audio_path), str(output_dir))
@@ -184,7 +238,8 @@ def transcribe(input_dir: str, output_path: str, api_key: str = None,
             'input': str(audio_path),
             'output': output_path,
             'char_count': len(full_text),
-            'mode': 'local' if local else 'api'
+            'mode': 'local' if local else 'api',
+            'engine': engine if local else 'api'
         }
 
     except Exception as e:
@@ -192,14 +247,16 @@ def transcribe(input_dir: str, output_path: str, api_key: str = None,
 
 
 def main():
-    parser = argparse.ArgumentParser(description='语音转文字')
+    parser = argparse.ArgumentParser(description='语音转文字（无需 OpenAI key 时使用 --local）')
     parser.add_argument('--input-dir', required=True, help='包含音频文件的目录')
     parser.add_argument('--output', required=True, help='输出文本文件路径')
     parser.add_argument('--api-key', help='OpenAI API key')
-    parser.add_argument('--local', action='store_true', help='使用本地 Whisper 模型')
-    parser.add_argument('--model', default='turbo', help='本地模型名称 (tiny/base/small/medium/large/turbo)')
+    parser.add_argument('--local', action='store_true', help='使用本地模型（无需 API key）')
+    parser.add_argument('--model', default='small', help='本地模型名称 (tiny/base/small/medium/large-v3/turbo)')
     parser.add_argument('--language', help='语言代码（如 zh, en）')
     parser.add_argument('--timestamps', action='store_true', help='输出带时间戳的格式')
+    parser.add_argument('--engine', default='auto', choices=['auto', 'faster-whisper', 'whisper'],
+                        help='本地引擎：auto 自动选择（推荐 faster-whisper）')
 
     args = parser.parse_args()
 
@@ -210,7 +267,8 @@ def main():
         local=args.local,
         model=args.model,
         language=args.language,
-        timestamps=args.timestamps
+        timestamps=args.timestamps,
+        engine=args.engine
     )
 
     print(json.dumps(result, indent=2, ensure_ascii=False))

@@ -32,8 +32,9 @@ python {skillDir}/scripts/setup_check.py
 缺失依赖时提示用户安装（Windows）：
 - `pip install yt-dlp`（视频下载必需）
 - ffmpeg（音频处理；Windows 可用 `winget install ffmpeg`）
-- `pip install openai`（可选，Whisper API 转录）
-- `pip install openai-whisper`（可选，本地转录，体积较大）
+- `pip install openai`（可选，Whisper API 转录，需要密钥）
+- `pip install faster-whisper`（推荐，本地转录，无需 API key，CPU 可跑）
+- `pip install openai-whisper`（可选，本地转录备选，依赖 torch 体积较大）
 
 ### 步骤 2：下载视频 / 提取字幕
 
@@ -65,7 +66,7 @@ Whisper API 转录（需设置 OPENAI_API_KEY 环境变量）：
 python {skillDir}/scripts/transcribe.py --input-dir '{skillDir}/output' --output '{skillDir}/output/transcript.txt' --timestamps
 ```
 
-本地 Whisper 转录（无需 API key）：
+本地转录（无需 API key，推荐 faster-whisper）：
 
 ```bash
 python {skillDir}/scripts/transcribe.py --input-dir '{skillDir}/output' --output '{skillDir}/output/transcript.txt' --local --model small --timestamps
