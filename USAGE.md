@@ -113,14 +113,25 @@ Skill 会自动完成：下载 → 转录 → 数据卡 → 热评 → 按 `refe
 - 互动数据佐证：高互动点与脚本内容对应
 - 可复用套路：脚本模板、话术金句、落地动作
 
-## 七、B站视频需要登录怎么办
+## 七、抖音平台怎么办
+
+抖音和 B站/YouTube 机制不同：无水印下载、短链分享、反爬和评论风控都比较严，**不推荐**直接拿本 skill 的 yt-dlp 脚本硬下抖音链接。推荐组合方案：
+
+- **视频下载 + 口播转录**：用专门的抖音提取链路（本机已装 daily-research skill，内部走本地 faster-whisper 转写）
+- **互动数据 + 评论**：用 TikHub 免费接口，或用浏览器登录态直连抖音 web 接口（daily-research 的 scripts/browser_direct.py）；拿不到的数据（如播放量）如实标「未获取」
+- **脚本拆解**：转录文本拿到后，仍按 references/beauty_breakdown_template.md 拆解，维度完全通用（前 3 秒钩子、痛点、成分功效话术、植入、CTA）
+- **榜单/趋势**：用抖音官方工具——热点宝、巨量算数
+
+一句话总结：**抖音负责「下载+数据+评论」，本 skill 负责「转录复用+美妆拆解模板」**。在 Codex 里对抖音视频说「拆解这条美妆爆款 + 链接」，会走抖音研究链路产出卡片，再套美妆模板出拆解报告。
+
+## 八、B站视频需要登录怎么办
 
 B站部分视频（高清画质、字幕）需要登录：
 
 - 读取浏览器登录态：`--cookies-from-browser edge`（支持 chrome/firefox/edge/safari/brave/opera/vivaldi）
 - 注意：**浏览器开着时可能读不到 cookie**，会报 `Could not copy Chrome cookie database`。关掉浏览器重试，或手动导出 cookies.txt 后用 `--cookies` 参数
 
-## 八、常见问题
+## 九、常见问题
 
 | 问题 | 解决办法 |
 |------|----------|
@@ -131,7 +142,7 @@ B站部分视频（高清画质、字幕）需要登录：
 | YouTube 打不开 | 需要代理 |
 | 热评抓取失败/风控 | 稍后重试，或用 `--cookies cookies.txt` |
 
-## 九、检查环境是否就绪
+## 十、检查环境是否就绪
 
 ```powershell
 python scripts/setup_check.py
@@ -139,7 +150,7 @@ python scripts/setup_check.py
 
 输出 `all_ok: true` 即环境正常。
 
-## 十、卸载
+## 十一、卸载
 
 删除 Skill 目录即可：
 

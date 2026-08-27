@@ -59,6 +59,7 @@ Whisper API 转录需要 `OPENAI_API_KEY` 环境变量。
 - 帮我归纳这个 B站教程的方法 https://www.bilibili.com/video/BVxxxxx
 - 这个视频讲了什么？https://www.youtube.com/watch?v=xxxxx
 - 拆解这条美妆爆款 https://www.bilibili.com/video/BVxxxxx（自动生成数据卡+热评+脚本拆解）
+- 抖音视频：拆解这条抖音美妆爆款 [链接]（走抖音研究链路 + 本 skill 美妆模板，详见 USAGE.md 七）
 - 分析这条视频为什么爆，脚本结构是什么 [链接]
 
 自动流程：

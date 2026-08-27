@@ -1,6 +1,6 @@
 ---
 name: video-summarizer
-description: 下载并总结 YouTube 和 B站（bilibili）视频内容。支持提取官方/AI 字幕、Whisper 语音转文字、生成结构化总结、方法归纳、互动数据卡、B站热评抓取、美妆爆款脚本拆解和基于视频内容的问答。当用户提供视频链接、要求总结视频、归纳视频方法、拆解爆款脚本或基于视频内容提问时自动触发。Cross-platform video download and summary skill for YouTube and Bilibili (Codex, Windows/macOS/Linux).
+description: 下载并总结 YouTube 和 B站（bilibili）视频内容。支持提取官方/AI 字幕、Whisper 语音转文字、生成结构化总结、方法归纳、互动数据卡、B站热评抓取、美妆爆款脚本拆解和基于视频内容的问答。抖音视频分析请配合专门的抖音研究 skill（如 daily-research）。当用户提供视频链接、要求总结视频、归纳视频方法、拆解爆款脚本或基于视频内容提问时自动触发。Cross-platform video download and summary skill for YouTube and Bilibili (Codex, Windows/macOS/Linux).
 ---
 
 # 视频下载与总结工具（Video Summarizer）
@@ -38,6 +38,14 @@ python {skillDir}/scripts/setup_check.py
 - `pip install openai`（可选，Whisper API 转录，需要密钥）
 - `pip install faster-whisper`（推荐，本地转录，无需 API key，CPU 可跑）
 - `pip install openai-whisper`（可选，本地转录备选，依赖 torch 体积较大）
+
+### 抖音链接注意（重要）
+
+抖音视频的无水印下载、互动数据和评论获取与 B站/YouTube 机制不同（反爬、风控严），本 skill 的 yt-dlp 脚本对抖音支持不稳定。遇到抖音链接时：
+1. 若环境已安装专门的抖音研究 skill（如 daily-research / konglong-research），直接走它的链路：下载+转写口播、TikHub 免费接口或浏览器登录态拉数据与评论、出研究卡片；
+2. 转写文本拿到后，仍用 references/beauty_breakdown_template.md 做美妆爆款拆解（维度通用）；
+3. 榜单/趋势数据用抖音官方工具：热点宝、巨量算数；
+4. 不要用 download.py 硬下抖音链接，失败时改走上面的抖音链路。
 
 ### 步骤 2：下载视频 / 提取字幕
 
