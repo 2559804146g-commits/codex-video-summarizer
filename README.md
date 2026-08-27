@@ -2,17 +2,20 @@
 
 > 基于 [video-summarizer-skill](https://github.com/nothinginterested/video-summarizer-skill)（MIT）适配：面向 Codex，跨平台（重点支持 Windows）。
 
-下载并总结 YouTube 和 B站视频内容的 Codex Skill：提取官方/AI 字幕，或 Whisper 语音转文字，生成结构化总结、方法归纳与问答。
+下载并总结 YouTube 和 B站视频内容的 Codex Skill：提取官方/AI 字幕，或 Whisper 语音转文字，生成结构化总结、方法归纳与问答；支持互动数据卡、B站热评抓取和美妆爆款脚本拆解。
 
-> 📖 **详细使用说明见 [USAGE.md](USAGE.md)**（安装、触发方式、无密钥转写、常见问题）
+> 📖 **详细使用说明见 [USAGE.md](USAGE.md)**（安装、触发方式、无密钥转写、美妆拆解、常见问题）
 
 ## 功能特点
 
 - 多平台支持：YouTube、哔哩哔哩（B站）
 - 智能字幕提取：优先官方字幕 / CC 字幕 / B站 AI 字幕
-- 语音转文字：Whisper（本地或 API）转录，带时间戳
+- 语音转文字：Whisper（本地或 API）转录，带时间戳，无需 OpenAI 密钥
 - 结构化总结：自动生成 Markdown 视频总结
 - 问答支持：基于视频内容问答
+- 互动数据卡：播放/点赞/投币/收藏/分享/弹幕/评论 + 转化率（赞播比等）
+- B站热评抓取：公开接口获取热门评论 TOP
+- 爆款拆解：美妆等品类爆款视频脚本结构拆解模板（面试编导/内容岗可用）
 
 ## 安装（Codex）
 
@@ -55,11 +58,13 @@ Whisper API 转录需要 `OPENAI_API_KEY` 环境变量。
 - 总结这个视频 https://www.bilibili.com/video/BVxxxxx
 - 帮我归纳这个 B站教程的方法 https://www.bilibili.com/video/BVxxxxx
 - 这个视频讲了什么？https://www.youtube.com/watch?v=xxxxx
+- 拆解这条美妆爆款 https://www.bilibili.com/video/BVxxxxx（自动生成数据卡+热评+脚本拆解）
+- 分析这条视频为什么爆，脚本结构是什么 [链接]
 
 自动流程：
 1. 下载字幕/音频（yt-dlp）
 2. 提取或转录文本
-3. 生成结构化总结
+3. 生成结构化总结 / 数据卡 / 热评 / 爆款拆解
 
 ## 目录结构
 
@@ -67,20 +72,41 @@ Whisper API 转录需要 `OPENAI_API_KEY` 环境变量。
 codex-video-summarizer/
 ├── SKILL.md              # Skill 核心定义
 ├── README.md             # 说明文档
+├── USAGE.md              # 详细使用说明
 ├── LICENSE               # MIT 许可证
 ├── install.py            # 一键安装脚本
 ├── scripts/
 │   ├── download.py       # 视频/字幕下载
 │   ├── extract_subtitles.py  # 字幕解析
-│   ├── transcribe.py     # Whisper 转录
+│   ├── transcribe.py     # Whisper 转录（本地无需密钥）
+│   ├── data_card.py      # 互动数据卡（新增）
+│   ├── fetch_comments.py # B站热评抓取（新增）
 │   ├── setup_check.py    # 依赖检查
 │   ├── clean_output.py   # 跨平台清理
-│   └── utils.py          # 工具函数
+│   └── utils.py          # 工具函数（含转化率计算）
 ├── references/
-│   ├── prompt_templates.md   # 总结模板
-│   └── platform_notes.md     # 平台说明
+│   ├── prompt_templates.md       # 总结模板
+│   ├── platform_notes.md         # 平台说明
+│   └── beauty_breakdown_template.md  # 美妆爆款拆解模板（新增）
 └── output/               # 临时输出（已忽略）
 ```
+
+## 进阶：美妆爆款拆解
+
+适合面试编导/内容岗位的作业或日常对标分析：
+
+```powershell
+# 1. 下载 + 转录 + 数据卡 + 热评
+python scripts/download.py --url 'URL' --output output
+python scripts/transcribe.py --input-dir output --output output/transcript.txt --local --model small --timestamps
+python scripts/data_card.py --input-dir output --output output/data_card.md
+python scripts/fetch_comments.py --input-dir output --output output/comments.md
+
+# 2. 让 Codex 按模板拆解
+# 说：拆解这条美妆爆款，参考 references/beauty_breakdown_template.md
+```
+
+拆解维度：前 3 秒钩子、痛点引入、成分功效话术、产品植入点（硬广 vs 种草）、节奏情绪曲线、结尾 CTA、封面标题策略、互动数据佐证、可复用套路。
 
 ## B站登录问题
 
@@ -110,6 +136,9 @@ python scripts/download.py --url 'URL' --output output --cookies-from-browser ed
 - 下载脚本自动回退到 python -m yt_dlp
 - 新增 install.py 一键安装到 Codex skills 目录
 - 新增 scripts/clean_output.py 跨平台清理
+- 新增互动数据卡与转化率计算（utils.get_engagement_metrics + scripts/data_card.py）
+- 新增 B站热评抓取（scripts/fetch_comments.py，公开接口）
+- 新增美妆爆款拆解模板（references/beauty_breakdown_template.md）
 
 ## 依赖说明
 

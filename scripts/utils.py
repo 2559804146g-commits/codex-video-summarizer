@@ -91,8 +91,9 @@ def get_video_info(directory: str) -> dict:
         return json.load(f)
 
 
-def format_duration(seconds: int) -> str:
+def format_duration(seconds) -> str:
     '''格式化时长'''
+    seconds = int(seconds or 0)
     hours = seconds // 3600
     minutes = (seconds % 3600) // 60
     secs = seconds % 60
@@ -112,12 +113,152 @@ def get_video_metadata(directory: str) -> dict:
     return {
         'title': info.get('title', '未知'),
         'duration': format_duration(info.get('duration', 0)),
-        'duration_seconds': info.get('duration', 0),
+        'duration_seconds': int(info.get('duration') or 0),
         'uploader': info.get('uploader', '未知'),
         'upload_date': info.get('upload_date', '未知'),
-        'view_count': info.get('view_count', 0),
+        'view_count': int(info.get('view_count') or 0),
         'description': info.get('description', '')[:500],  # 截取前 500 字符
         'platform': detect_video_platform(info.get('webpage_url', ''))
+    }
+
+
+def to_int(value):
+    '''安全转 int，失败返回 0'''
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return 0
+
+
+def compute_engagement_metrics(view_count, like_count, coin_count,
+                               favorite_count, share_count, danmaku_count,
+                               reply_count) -> dict:
+    '''
+    根据互动原始值计算转化率
+
+    - 各互动量原始值（播放/点赞/投币/收藏/分享/弹幕/评论）
+    - 各转化率（占播放量的比例，如赞播比）
+    - total_interactions 互动总量、interaction_rate 综合互动率
+    播放量为 0 时转化率为 None。
+    '''
+    view_count = to_int(view_count)
+    like_count = to_int(like_count)
+    coin_count = to_int(coin_count)
+    favorite_count = to_int(favorite_count)
+    share_count = to_int(share_count)
+    danmaku_count = to_int(danmaku_count)
+    reply_count = to_int(reply_count)
+
+    def ratio(part, total):
+        if total <= 0:
+            return None
+        return round(part / total, 4)
+
+    total_interactions = (like_count + coin_count + favorite_count
+                          + share_count + danmaku_count + reply_count)
+
+    return {
+        'view_count': view_count,
+        'like_count': like_count,
+        'coin_count': coin_count,
+        'favorite_count': favorite_count,
+        'share_count': share_count,
+        'danmaku_count': danmaku_count,
+        'reply_count': reply_count,
+        'like_view_ratio': ratio(like_count, view_count),
+        'coin_view_ratio': ratio(coin_count, view_count),
+        'favorite_view_ratio': ratio(favorite_count, view_count),
+        'share_view_ratio': ratio(share_count, view_count),
+        'comment_view_ratio': ratio(reply_count, view_count),
+        'danmaku_view_ratio': ratio(danmaku_count, view_count),
+        'total_interactions': total_interactions,
+        'interaction_rate': ratio(total_interactions, view_count)
+    }
+
+
+def get_engagement_metrics(directory: str) -> dict:
+    '''从 info.json 读取互动数据并计算转化率'''
+    info = get_video_info(directory)
+    if not info:
+        return None
+
+    return compute_engagement_metrics(
+        info.get('view_count'),
+        info.get('like_count'),
+        info.get('coin_count'),
+        info.get('favorite_count'),
+        info.get('share_count'),
+        info.get('danmaku_count'),
+        info.get('reply_count', info.get('comment_count'))
+    )
+
+
+def get_bilibili_ids(directory: str) -> dict:
+    '''从 info.json 提取 B站视频的 aid / bvid / cid（用于评论接口）'''
+    info = get_video_info(directory)
+    if not info:
+        return None
+
+    raw_id = info.get('id')
+    bvid = info.get('bvid')
+    if not bvid:
+        # yt-dlp 的 B站 info.json 中 id 字段就是 BV 号
+        if isinstance(raw_id, str) and raw_id.startswith('BV'):
+            bvid = raw_id
+        else:
+            extracted = extract_video_id(info.get('webpage_url', ''))
+            if extracted and extracted.startswith('BV'):
+                bvid = extracted
+
+    aid = None
+    if isinstance(raw_id, int):
+        aid = raw_id
+
+    return {
+        'aid': aid,
+        'bvid': bvid,
+        'cid': info.get('cid')
+    }
+
+
+BILIBILI_USER_AGENT = (
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+    'AppleWebKit/537.36 (KHTML, like Gecko) '
+    'Chrome/124.0.0.0 Safari/537.36'
+)
+
+
+def fetch_bilibili_stat(bvid: str, timeout: int = 15) -> dict:
+    '''
+    通过 B站公开接口获取完整互动统计（含投币/收藏/分享/弹幕）
+
+    返回 stat 数字 + aid/bvid/cid；失败返回 None。
+    '''
+    import urllib.request
+    url = 'https://api.bilibili.com/x/web-interface/view?bvid=' + bvid
+    req = urllib.request.Request(url, headers={'User-Agent': BILIBILI_USER_AGENT})
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            data = json.loads(resp.read().decode('utf-8'))
+    except Exception:
+        return None
+
+    if data.get('code') != 0:
+        return None
+
+    d = data.get('data') or {}
+    stat = d.get('stat') or {}
+    return {
+        'view_count': stat.get('view'),
+        'like_count': stat.get('like'),
+        'coin_count': stat.get('coin'),
+        'favorite_count': stat.get('favorite'),
+        'share_count': stat.get('share'),
+        'danmaku_count': stat.get('danmaku'),
+        'reply_count': stat.get('reply'),
+        'aid': d.get('aid'),
+        'bvid': d.get('bvid'),
+        'cid': d.get('cid')
     }
 
 
